@@ -13,33 +13,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
-typedef struct{
-    float v_x;
-    float v_y;
-    float w_z;
-    uint8_t crc;
-}s_Trama_rx;
 
-typedef union{
-  s_Trama_rx trama_struct;
-  char trama_char[13];
-}u_Trama_rx;
-
-typedef struct{
-  uint32_t timestamp;       //contador que indica el ms en que se hizo la medicion
-  uint16_t u_m   [4];          //velocidad angular en el eje de cada motor
-  uint16_t a_m   [3];          //aceleraciÃ³n lineal medida en cada eje
-  uint16_t phi_m [3];          //giro en cada eje
-  uint16_t i_m   [4];          //corriente medida en cada motor
-  uint16_t v_bat;
-  uint16_t status;
-  uint8_t crc;
-}s_Trama_tx;
-
-typedef union{
-  s_Trama_tx trama_struct;
-  char trama_char[37];
-}u_Trama_tx;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -47,6 +21,8 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     puertoSerie = new QSerialPort(this);
+    trama_tx = new u_Trama_tx;
+
     data_file = new QFile(data_file_name);
     csv_file = new QFile(csv_file_name);
     chart = new QChart();
@@ -55,14 +31,15 @@ MainWindow::MainWindow(QWidget *parent)
 //    ui->button->setIcon(QIcon(":/icons/up.png"));
 //    ui->button->setIconSize(QSize(65, 65));
 
-    connect(ui->slider_velocidad, SIGNAL(valueChanged(int)), ui->label_duty, SLOT(setNum(int)));
+    connect(ui->slider_velocidad, SIGNAL(valueChanged(int)), ui->label_velocidad, SLOT(setNum(int)));
     connect(ui->slider_velocidad, SIGNAL(valueChanged(int)), this, SLOT(enviarTrama()));
-    connect(ui->button_up,    SIGNAL(clicked(bool)), this, SLOT(enviarTrama()));
-    connect(ui->button_down,  SIGNAL(clicked(bool)), this, SLOT(enviarTrama()));
-    connect(ui->button_right, SIGNAL(clicked(bool)), this, SLOT(enviarTrama()));
-    connect(ui->button_left,  SIGNAL(clicked(bool)), this, SLOT(enviarTrama()));
-    connect(ui->button_cw,    SIGNAL(clicked(bool)), this, SLOT(enviarTrama()));
-    connect(ui->button_ccw,   SIGNAL(clicked(bool)), this, SLOT(enviarTrama()));
+    connect(ui->button_up,    &QPushButton::clicked, [this](){  this->setVel( 1, 0, 0);  });
+    connect(ui->button_down,  &QPushButton::clicked, [this](){  this->setVel(-1, 0, 0);  });
+    connect(ui->button_right, &QPushButton::clicked, [this](){  this->setVel( 0,-1, 0);  });
+    connect(ui->button_left,  &QPushButton::clicked, [this](){  this->setVel( 0, 1, 0);  });
+    connect(ui->button_cw,    &QPushButton::clicked, [this](){  this->setVel( 0, 0, 1);  });
+    connect(ui->button_ccw,   &QPushButton::clicked, [this](){  this->setVel( 0, 0,-1);  });
+
     connect(ui->button_conectarPuertoSerie, SIGNAL(clicked(bool)), this, SLOT(abrirPuertoSerie()));
     connect(puertoSerie,      SIGNAL(readyRead()),   this, SLOT(leerTrama()));
 
@@ -139,14 +116,21 @@ void MainWindow::abrirPuertoSerie(){
 
 }
 
+void  MainWindow::setVel(float v_x, float v_y, float w_z){
+    float vel = ui->slider_velocidad->value()/100.0;
+    trama_tx->data.v_x = v_x*vel;
+    trama_tx->data.v_y = v_y*vel;
+    trama_tx->data.w_z = w_z*vel;
+    qDebug() << "Enviado" <<  trama_tx->data.v_x <<  trama_tx->data.v_y <<  trama_tx->data.w_z;
+    enviarTrama();
+}
+
 void MainWindow::enviarTrama(){
-    Trama_tx trama_tx;
-//    trama_tx.data.start = 0xFF;
-    trama_tx.data.duty_pwm = ui->slider_velocidad->value();
-    trama_tx.data.freq_pwm = 1000;
+//    Trama_tx trama_tx;
+//    trama_tx.data.freq_pwm = 1000;
+
     if(puertoSerieAbierto){
-        puertoSerie->write(trama_tx.string, sizeof(s_Trama_tx));
-        qDebug() << "Enviado" << trama_tx.data.freq_pwm << trama_tx.data.duty_pwm;
+        puertoSerie->write(trama_tx->string, sizeof(s_Trama_tx));
     }
 
 }
