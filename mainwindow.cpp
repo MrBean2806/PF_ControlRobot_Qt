@@ -14,27 +14,32 @@
 #include "ui_mainwindow.h"
 
 typedef struct{
-//    uint8_t start;
-    uint16_t duty_pwm;
-    uint16_t freq_pwm;
-}s_Trama_tx;
-
-typedef union{
-  s_Trama_tx data;
-  char string[4];
-}Trama_tx;
-
-typedef struct{
-    uint16_t duty_pwm;
-    uint16_t w_m;
-    uint16_t i_m;
-    uint16_t  crc;
+    float v_x;
+    float v_y;
+    float w_z;
+    uint8_t crc;
 }s_Trama_rx;
 
 typedef union{
-  s_Trama_rx data;
-  char string[8];
-}Trama_rx;
+  s_Trama_rx trama_struct;
+  char trama_char[13];
+}u_Trama_rx;
+
+typedef struct{
+  uint32_t timestamp;       //contador que indica el ms en que se hizo la medicion
+  uint16_t u_m   [4];          //velocidad angular en el eje de cada motor
+  uint16_t a_m   [3];          //aceleraciÃ³n lineal medida en cada eje
+  uint16_t phi_m [3];          //giro en cada eje
+  uint16_t i_m   [4];          //corriente medida en cada motor
+  uint16_t v_bat;
+  uint16_t status;
+  uint8_t crc;
+}s_Trama_tx;
+
+typedef union{
+  s_Trama_tx trama_struct;
+  char trama_char[37];
+}u_Trama_tx;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
