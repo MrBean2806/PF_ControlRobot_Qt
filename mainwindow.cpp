@@ -10,6 +10,7 @@
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QCategoryAxis>
 #include <QTimer>
+#include <QtMath>
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
@@ -22,17 +23,20 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     puertoSerie = new QSerialPort(this);
     trama_tx = new u_Trama_tx;
+    timer = new QTimer(this);
+    vel_espacial_actual = new Vel_espacial();
+    vel_espacial_final = new Vel_espacial();
 
-    data_file = new QFile(data_file_name);
-    csv_file = new QFile(csv_file_name);
-    chart = new QChart();
-    chartView = new QChartView(chart);
+//    data_file = new QFile(data_file_name);
+//    csv_file = new QFile(csv_file_name);
+//    chart = new QChart();
+//    chartView = new QChartView(chart);
 
 //    ui->button->setIcon(QIcon(":/icons/up.png"));
 //    ui->button->setIconSize(QSize(65, 65));
 
     connect(ui->slider_velocidad, SIGNAL(valueChanged(int)), ui->label_velocidad, SLOT(setNum(int)));
-    connect(ui->slider_velocidad, SIGNAL(valueChanged(int)), this, SLOT(enviarTrama()));
+//    connect(ui->slider_velocidad, SIGNAL(valueChanged(int)), this, SLOT(enviarTrama()));
     connect(ui->button_up,    &QPushButton::clicked, [this](){  this->setVel( 1, 0, 0);  });
     connect(ui->button_down,  &QPushButton::clicked, [this](){  this->setVel(-1, 0, 0);  });
     connect(ui->button_right, &QPushButton::clicked, [this](){  this->setVel( 0,-1, 0);  });
@@ -40,8 +44,10 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->button_cw,    &QPushButton::clicked, [this](){  this->setVel( 0, 0, 1);  });
     connect(ui->button_ccw,   &QPushButton::clicked, [this](){  this->setVel( 0, 0,-1);  });
 
+//    connect(&timer, &QTimer::timeout, this, SLOT(enviarTrama()));
+
     connect(ui->button_conectarPuertoSerie, SIGNAL(clicked(bool)), this, SLOT(abrirPuertoSerie()));
-    connect(puertoSerie,      SIGNAL(readyRead()),   this, SLOT(leerTrama()));
+    connect(puertoSerie, SIGNAL(readyRead()), this, SLOT(leerTrama()));
 
 //    abrirPuertoSerie();
 
@@ -116,21 +122,60 @@ void MainWindow::abrirPuertoSerie(){
 
 }
 
-void  MainWindow::setVel(float v_x, float v_y, float w_z){
-    float vel = ui->slider_velocidad->value()/100.0;
-    trama_tx->data.v_x = v_x*vel;
-    trama_tx->data.v_y = v_y*vel;
-    trama_tx->data.w_z = w_z*vel;
-    qDebug() << "Enviado" <<  trama_tx->data.v_x <<  trama_tx->data.v_y <<  trama_tx->data.w_z;
-    enviarTrama();
+void MainWindow::setVel(float v_x, float v_y, float w_z){
+    if(velocidadEstable){
+//        ui->slider_velocidad->setValue(50);
+        float vel = ui->slider_velocidad->value()/100.0;
+
+        vel_espacial_final->setVel(v_x*vel, v_y*vel, w_z*vel);
+        qDebug() << "Vel final";
+        vel_espacial_final->imprimirVelocidades();
+        qDebug() << "Vel inicial";
+        vel_espacial_actual->imprimirVelocidades();
+
+//        velocidadEstable = false;
+        qDebug() << "Rampa vx";
+        rampa_vx = generarRampaVelocidad(vel_espacial_actual->vx, vel_espacial_final->vx);
+        qDebug() << "Rampa vy";
+        rampa_vy = generarRampaVelocidad(vel_espacial_actual->vy, vel_espacial_final->vy);
+        qDebug() << "Rampa wz";
+        rampa_wz = generarRampaVelocidad(vel_espacial_actual->wz, vel_espacial_final->wz);
+
+//        timer->start(100);      //Envio la rampa de vel cada 100ms hasta terminarla
+//        enviarTrama();
+    }
+}
+
+float * MainWindow::generarRampaVelocidad(float vel_inicial, float vel_final){
+    float a_max   = 0.44;         // [m/s^2]
+    int data_freq = 50;      //frecuencia [Hz] con que se hacen las actualizaciones de velocidad
+    float t_step  = 1.0/data_freq;
+    if(vel_final-vel_inicial < 0)  a_max = -a_max;
+    float Delta_t = (vel_final-vel_inicial)/a_max;
+    Delta_t = qRound(Delta_t/t_step)*t_step; //me aseguro que el delta sea multiplo de t_step
+    int N = Delta_t/t_step + 1;       //Cantidad de pasos de la rampa
+
+    float * rampa_vel = new float [N];
+//    qDebug() << "N: " << N << "Delta_t: " << Delta_t << "t_step: " << t_step;
+    for(int n = 0; n < N; n++){
+        rampa_vel[n] = a_max*t_step*n - a_max*Delta_t + vel_final;
+        qDebug() << rampa_vel[n];
+    }
+    return rampa_vel;
 }
 
 void MainWindow::enviarTrama(){
-//    Trama_tx trama_tx;
-//    trama_tx.data.freq_pwm = 1000;
 
     if(puertoSerieAbierto){
-        puertoSerie->write(trama_tx->string, sizeof(s_Trama_tx));
+        if(!velocidadEstable){
+//            rampaVelEspacial[n]
+            //        trama_tx->data.v_x = v_x*vel;
+            //        trama_tx->data.v_y = v_y*vel;
+            //        trama_tx->data.w_z = w_z*vel;
+
+//            puertoSerie->write(trama_tx->string, sizeof(s_Trama_tx));
+            qDebug() << "Enviado" <<  trama_tx->data.v_x <<  trama_tx->data.v_y <<  trama_tx->data.w_z;
+        }
     }
 
 }

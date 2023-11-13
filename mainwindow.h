@@ -41,6 +41,26 @@ typedef union{
   char string[37];
 }u_Trama_rx;
 
+class Vel_espacial {
+public:
+    float vx;  // Componente en la dirección x
+    float vy;  // Componente en la dirección y
+    float wz;  // Componente de rotación alrededor del eje z
+
+    // Constructor por defecto
+    Vel_espacial() : vx(0.0), vy(0.0), wz(0.0) {}
+
+    // Constructor con parámetros
+    Vel_espacial(float vx, float vy, float wz) : vx(vx), vy(vy), wz(wz) {}
+
+    // Método para imprimir las velocidades espaciales
+    void imprimirVelocidades() const {
+        qDebug() << "vx: " << vx << ", vy: " << vy << ", wz: " << wz ;
+    }
+    void setVel(float _vx, float _vy, float _wz){ vx = _vx; vy = _vy; wz = _wz;}
+    float getMag(){ return vx*vx + vy*vy + wz*wz; }
+};
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -62,20 +82,23 @@ private:
     Ui::MainWindow *ui;
     QSerialPort *puertoSerie;
     u_Trama_tx *trama_tx;
-    QFile *data_file;
-    QFile *csv_file;
-    QString data_file_name = "data.txt";
-    QString csv_file_name = "data.csv";
-    QChart *chart;
-    QChartView *chartView;
     QTimer *timer;
+    Vel_espacial *vel_espacial_actual;
+    Vel_espacial *vel_espacial_final;
+    float *rampaVelEspacial;
+    float *rampa_vx;
+    float *rampa_vy;
+    float *rampa_wz;
     bool puertoSerieAbierto = false;
-    bool graficarVelocidad = false;
+    bool graficarVelocidad  = false;
+    bool velocidadEstable   = true;
     static const quint16 sasori_vendor_id = 1027;
     static const quint16 sasori_product_id = 24577;
     void abrirArchivo(QFile *);
     void setVel(float, float, float);
+    float * generarRampaVelocidad(float, float);
 
-//    void writeFile(QString);
 };
+
+
 #endif // MAINWINDOW_H
