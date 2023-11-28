@@ -22,23 +22,25 @@ typedef struct{
 
 typedef union{
   s_Trama_tx data;
-  char string[13];
+  char string[16];
 }u_Trama_tx;
 
 typedef struct{
-  uint32_t timestamp;       //contador que indica el ms en que se hizo la medicion
-  uint16_t u_m   [4];          //velocidad angular en el eje de cada motor
-  uint16_t a_m   [3];          //aceleraciÃ³n lineal medida en cada eje
-  uint16_t phi_m [3];          //giro en cada eje
-  uint16_t i_m   [4];          //corriente medida en cada motor
-  uint16_t v_bat;
-  uint16_t status;
-  uint8_t crc;
+    uint32_t start;
+    uint32_t timestamp;       //contador que indica el ms en que se hizo la medicion
+    float    u_m   [4];          //velocidad angular en el eje de cada motor
+    float    a_m   [3];          //aceleraciÃ³n lineal medida en cada eje
+    float    phi_m [3];          //giro en cada eje
+    uint16_t i_m;          //corriente medida en cada motor
+    uint16_t v_bat;
+    uint16_t status;
+    uint8_t  crc;
+    uint8_t  stop;
 }s_Trama_rx;
 
 typedef union{
   s_Trama_rx data;
-  char string[37];
+  char string[52];
 }u_Trama_rx;
 
 class Vel_espacial {

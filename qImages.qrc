@@ -1,5 +1,6 @@
-<!DOCTYPE RCC><RCC version="1.0">
- <qresource>
-     <file>icons/up.png</file>
- </qresource>
- </RCC>
+<RCC>
+    <qresource prefix="/">
+        <file>icons/up.png</file>
+        <file>icons/RobotOmni.png</file>
+    </qresource>
+</RCC>

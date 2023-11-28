@@ -15,7 +15,6 @@
 #include "ui_mainwindow.h"
 
 
-
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -32,17 +31,27 @@ MainWindow::MainWindow(QWidget *parent)
 //    chart = new QChart();
 //    chartView = new QChartView(chart);
 
-//    ui->button->setIcon(QIcon(":/icons/up.png"));
-//    ui->button->setIconSize(QSize(65, 65));
+//    QPixmap imagen(":/icons/RobotOmni.png");
+//    imagen = imagen.scaled(300, 200, Qt::KeepAspectRatio);
+//    ui->label_ImagenRobot->setPixmap(imagen);
+//    ui->label_ImagenRobot->show();
 
-    connect(ui->slider_velocidad, SIGNAL(valueChanged(int)), ui->label_velocidad, SLOT(setNum(int)));
-//    connect(ui->slider_velocidad, SIGNAL(valueChanged(int)), this, SLOT(enviarTrama()));
+
+    connect(ui->slider_vel_ref, SIGNAL(valueChanged(int)), ui->label_velocidad, SLOT(setNum(int)));
+    connect(ui->slider_velocidad, SIGNAL(valueChanged(int)), this, SLOT(enviarTrama()));
     connect(ui->button_up,    &QPushButton::clicked, [this](){  this->setVel( 1, 0, 0);  });
     connect(ui->button_down,  &QPushButton::clicked, [this](){  this->setVel(-1, 0, 0);  });
     connect(ui->button_right, &QPushButton::clicked, [this](){  this->setVel( 0,-1, 0);  });
     connect(ui->button_left,  &QPushButton::clicked, [this](){  this->setVel( 0, 1, 0);  });
     connect(ui->button_cw,    &QPushButton::clicked, [this](){  this->setVel( 0, 0, 1);  });
     connect(ui->button_ccw,   &QPushButton::clicked, [this](){  this->setVel( 0, 0,-1);  });
+
+//    connect(ui->button_up,    &QPushButton::clicked, [this](){  this->setVel( 0, 0, 0);  });
+//    connect(ui->button_down,  &QPushButton::clicked, [this](){  this->setVel( 0, 0, 0);  });
+//    connect(ui->button_right, &QPushButton::clicked, [this](){  this->setVel( 0, 0, 0);  });
+//    connect(ui->button_left,  &QPushButton::clicked, [this](){  this->setVel( 0, 0, 0);  });
+//    connect(ui->button_cw,    &QPushButton::clicked, [this](){  this->setVel( 0, 0, 0);  });
+//    connect(ui->button_ccw,   &QPushButton::clicked, [this](){  this->setVel( 0, 0, 0);  });
 
 //    connect(&timer, &QTimer::timeout, this, SLOT(enviarTrama()));
 
@@ -124,14 +133,26 @@ void MainWindow::abrirPuertoSerie(){
 
 void MainWindow::setVel(float v_x, float v_y, float w_z){
     if(velocidadEstable){
-//        ui->slider_velocidad->setValue(50);
-        float vel = ui->slider_velocidad->value()/100.0;
+        float l = 0.15;
+        float w = 0.125;
+        float r = 0.05;
 
-        vel_espacial_final->setVel(v_x*vel, v_y*vel, w_z*vel);
-        qDebug() << "Vel final";
-        vel_espacial_final->imprimirVelocidades();
+        float vel = ui->slider_vel_ref->value()/100.0;
+        float vx_ref = v_x*vel;
+        float vy_ref = v_y*vel;
+        float wz_ref = w_z*vel;
+
+        ui->label_u_ref_1->setText(QString::number((30.0/3.1415)*(1.0/r)*((-l-w)*wz_ref + vx_ref - vy_ref)));
+        ui->label_u_ref_2->setText(QString::number((30.0/3.1415)*(1.0/r)*(( l+w)*wz_ref + vx_ref + vy_ref)));
+        ui->label_u_ref_3->setText(QString::number((30.0/3.1415)*(1.0/r)*(( l+w)*wz_ref + vx_ref - vy_ref)));
+        ui->label_u_ref_4->setText(QString::number((30.0/3.1415)*(1.0/r)*((-l-w)*wz_ref + vx_ref + vy_ref)));
+
+        vel_espacial_final->setVel(vx_ref, vy_ref, wz_ref);
+
         qDebug() << "Vel inicial";
         vel_espacial_actual->imprimirVelocidades();
+        qDebug() << "Vel final";
+        vel_espacial_final->imprimirVelocidades();
 
 //        velocidadEstable = false;
         qDebug() << "Rampa vx";
@@ -141,6 +162,7 @@ void MainWindow::setVel(float v_x, float v_y, float w_z){
         qDebug() << "Rampa wz";
         rampa_wz = generarRampaVelocidad(vel_espacial_actual->wz, vel_espacial_final->wz);
 
+//        vel_espacial_actual = vel_espacial_final;
 //        timer->start(100);      //Envio la rampa de vel cada 100ms hasta terminarla
 //        enviarTrama();
     }
@@ -159,46 +181,55 @@ float * MainWindow::generarRampaVelocidad(float vel_inicial, float vel_final){
 //    qDebug() << "N: " << N << "Delta_t: " << Delta_t << "t_step: " << t_step;
     for(int n = 0; n < N; n++){
         rampa_vel[n] = a_max*t_step*n - a_max*Delta_t + vel_final;
-        qDebug() << rampa_vel[n];
+//        qDebug() << rampa_vel[n];
     }
     return rampa_vel;
 }
 
 void MainWindow::enviarTrama(){
-
+    static int n = 0;
     if(puertoSerieAbierto){
-        if(!velocidadEstable){
-//            rampaVelEspacial[n]
-            //        trama_tx->data.v_x = v_x*vel;
-            //        trama_tx->data.v_y = v_y*vel;
-            //        trama_tx->data.w_z = w_z*vel;
+        if(n != ){
+            trama_tx->data.v_x = rampa_vx[n];
+            trama_tx->data.v_y = rampa_vy[n];
+            trama_tx->data.w_z = rampa_wz[n];
 
-//            puertoSerie->write(trama_tx->string, sizeof(s_Trama_tx));
+            puertoSerie->write(trama_tx->string, sizeof(s_Trama_tx));
             qDebug() << "Enviado" <<  trama_tx->data.v_x <<  trama_tx->data.v_y <<  trama_tx->data.w_z;
+            n++;
         }
     }
 
 }
 
 void MainWindow::leerTrama(){
+//    u_Trama_rx trama_rx;
 //    if(puertoSerieAbierto){
 //        QByteArray serialBuffer = puertoSerie->readAll();
 ////        qDebug() << serialBuffer;
+//        int i_inicio = serialBuffer.indexOf('[');
+//        int i_final  = serialBuffer.indexOf(']', i_inicio);
+//        while(i_inicio >= 0 && i_final >= 0){
+//                memcpy(trama_rx.string, serialBuffer.sliced(i_inicio, i_final-i_inicio-1), sizeof(s_Trama_rx));
+////                qDebug() << "Extraido: " << serialBuffer.sliced(i_inicio, i_final-i_inicio-1), sizeof(s_Trama_rx);
+//                i_inicio = serialBuffer.indexOf('[', i_final);
+//                i_final  = serialBuffer.indexOf(']', i_inicio);
+//        }
+//        ui->label_u_ref_1->setText(trama_rx.data.u_m[0]);
+//        ui->label_u_ref_2->setText(trama_rx.data.u_m[1]);
+//        ui->label_u_ref_3->setText(trama_rx.data.u_m[2]);
+//        ui->label_u_ref_4->setText(trama_rx.data.u_m[3]);
+////        enviarTrama();
 //        if(graficarVelocidad){
 //            //Leo todo lo que haya en el puerto serie y lo guardo en el archivo
 ////            qDebug() << serialBuffer;
-//            QTextStream stream(data_file);
-//            stream << serialBuffer;
+////            QTextStream stream(data_file);
+////            stream << serialBuffer;
 
 //        }else{
-//            QByteArray vel_medida;
-//            int i_final = serialBuffer.lastIndexOf('\n');
-//            int i_espacio = serialBuffer.lastIndexOf(' ', i_final);
-//            if(i_final > 0){
-//                vel_medida = serialBuffer.sliced(i_espacio+1, i_final-i_espacio-1);
-////                QString segundaPalabra = inputString.mid(espacioPos + 1, inputString.indexOf('\n') - espacioPos - 1);
-////                ui->lcd_w_m->display(vel_medida.toInt());
-//            }
+////            QByteArray vel_medida;
+//            QByteArray duty = 0;
+
 //        }
 //    }
 
