@@ -11,6 +11,8 @@
 #include <QtCharts/QCategoryAxis>
 #include <QTimer>
 #include <QtMath>
+#include <iostream>
+#include <vector>
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
@@ -37,14 +39,14 @@ MainWindow::MainWindow(QWidget *parent)
 //    ui->label_ImagenRobot->show();
 
 
-    connect(ui->slider_vel_ref, SIGNAL(valueChanged(int)), ui->label_velocidad, SLOT(setNum(int)));
-    connect(ui->slider_velocidad, SIGNAL(valueChanged(int)), this, SLOT(enviarTrama()));
-    connect(ui->button_up,    &QPushButton::clicked, [this](){  this->setVel( 1, 0, 0);  });
-    connect(ui->button_down,  &QPushButton::clicked, [this](){  this->setVel(-1, 0, 0);  });
-    connect(ui->button_right, &QPushButton::clicked, [this](){  this->setVel( 0,-1, 0);  });
-    connect(ui->button_left,  &QPushButton::clicked, [this](){  this->setVel( 0, 1, 0);  });
-    connect(ui->button_cw,    &QPushButton::clicked, [this](){  this->setVel( 0, 0, 1);  });
-    connect(ui->button_ccw,   &QPushButton::clicked, [this](){  this->setVel( 0, 0,-1);  });
+    connect(ui->slider_vx, SIGNAL(valueChanged(int)), ui->label_vx, SLOT(setNum(int)));
+    connect(ui->slider_vy, SIGNAL(valueChanged(int)), ui->label_vy, SLOT(setNum(int)));
+    connect(ui->slider_wz, SIGNAL(valueChanged(int)), ui->label_wz, SLOT(setNum(int)));
+
+    connect(ui->slider_vx, SIGNAL(sliderReleased()), this, SLOT(setVel()));
+    connect(ui->slider_vy, SIGNAL(sliderReleased()), this, SLOT(setVel()));
+    connect(ui->slider_wz, SIGNAL(sliderReleased()), this, SLOT(setVel()));
+
 
 //    connect(ui->button_up,    &QPushButton::clicked, [this](){  this->setVel( 0, 0, 0);  });
 //    connect(ui->button_down,  &QPushButton::clicked, [this](){  this->setVel( 0, 0, 0);  });
@@ -131,16 +133,15 @@ void MainWindow::abrirPuertoSerie(){
 
 }
 
-void MainWindow::setVel(float v_x, float v_y, float w_z){
+void MainWindow::setVel(){
     if(velocidadEstable){
         float l = 0.15;
         float w = 0.125;
         float r = 0.05;
 
-        float vel = ui->slider_vel_ref->value()/100.0;
-        float vx_ref = v_x*vel;
-        float vy_ref = v_y*vel;
-        float wz_ref = w_z*vel;
+        float vx_ref = ui->slider_vx->value()/100.0;
+        float vy_ref = ui->slider_vy->value()/100.0;
+        float wz_ref = ui->slider_wz->value()/100.0;
 
         ui->label_u_ref_1->setText(QString::number((30.0/3.1415)*(1.0/r)*((-l-w)*wz_ref + vx_ref - vy_ref)));
         ui->label_u_ref_2->setText(QString::number((30.0/3.1415)*(1.0/r)*(( l+w)*wz_ref + vx_ref + vy_ref)));
@@ -148,56 +149,97 @@ void MainWindow::setVel(float v_x, float v_y, float w_z){
         ui->label_u_ref_4->setText(QString::number((30.0/3.1415)*(1.0/r)*((-l-w)*wz_ref + vx_ref + vy_ref)));
 
         vel_espacial_final->setVel(vx_ref, vy_ref, wz_ref);
-
         qDebug() << "Vel inicial";
         vel_espacial_actual->imprimirVelocidades();
         qDebug() << "Vel final";
         vel_espacial_final->imprimirVelocidades();
 
 //        velocidadEstable = false;
-        qDebug() << "Rampa vx";
-        rampa_vx = generarRampaVelocidad(vel_espacial_actual->vx, vel_espacial_final->vx);
-        qDebug() << "Rampa vy";
-        rampa_vy = generarRampaVelocidad(vel_espacial_actual->vy, vel_espacial_final->vy);
-        qDebug() << "Rampa wz";
-        rampa_wz = generarRampaVelocidad(vel_espacial_actual->wz, vel_espacial_final->wz);
-
+        generarRampaVelocidad(vel_espacial_actual, vel_espacial_final);
+        qDebug() << "Sali";
 //        vel_espacial_actual = vel_espacial_final;
-//        timer->start(100);      //Envio la rampa de vel cada 100ms hasta terminarla
+        vel_espacial_actual->setVel(vel_espacial_final->vx, vel_espacial_final->vy, vel_espacial_final->wz);
 //        enviarTrama();
     }
 }
 
-float * MainWindow::generarRampaVelocidad(float vel_inicial, float vel_final){
+void MainWindow::generarRampaVelocidad(Vel_espacial * v_inicial, Vel_espacial * v_final){
     float a_max   = 0.44;         // [m/s^2]
     int data_freq = 50;      //frecuencia [Hz] con que se hacen las actualizaciones de velocidad
     float t_step  = 1.0/data_freq;
-    if(vel_final-vel_inicial < 0)  a_max = -a_max;
-    float Delta_t = (vel_final-vel_inicial)/a_max;
-    Delta_t = qRound(Delta_t/t_step)*t_step; //me aseguro que el delta sea multiplo de t_step
-    int N = Delta_t/t_step + 1;       //Cantidad de pasos de la rampa
+    float Delta_t = 0;
+    int N = 0;
+    float vel_inicial = 0, vel_final = 0;
 
-    float * rampa_vel = new float [N];
+    if(v_inicial->vx != v_final->vx){
+        vel_inicial = v_inicial->vx;
+        vel_final   = v_final->vx;
+    }else if(v_inicial->vy != v_final->vy){
+        vel_inicial = v_inicial->vy;
+        vel_final   = v_final->vy;
+    }else if(v_inicial->wz != v_final->wz){
+        vel_inicial = v_inicial->wz;
+        vel_final   = v_final->wz;
+    }
+
+//    if(vel_final - vel_inicial < 0)  a_max = -a_max;
+//    Delta_t = (vel_final-vel_inicial)/a_max;
+//    Delta_t = qRound(Delta_t/t_step)*t_step; //me aseguro que el delta sea multiplo de t_step
+//    N = Delta_t/t_step + 1;       //Cantidad de pasos de la rampa
+
+    if(vel_final<vel_inicial)  a_max=-a_max;
+    Delta_t = (vel_final-vel_inicial)/a_max;
+    Delta_t = qRound(Delta_t/t_step)*t_step; //me aseguro que el delta sea multiplo de t_step
+    N = Delta_t/t_step + 1;
+
 //    qDebug() << "N: " << N << "Delta_t: " << Delta_t << "t_step: " << t_step;
+//    qDebug() << "N: " << N;
+    rampa_vx = new std::vector<float>(N, 0);
+    rampa_vy = new std::vector<float>(N, 0);
+    rampa_wz = new std::vector<float>(N, 0);
+    std::vector<float> rampa(N, 0);
+
     for(int n = 0; n < N; n++){
-        rampa_vel[n] = a_max*t_step*n - a_max*Delta_t + vel_final;
+        rampa[n] = a_max*t_step*n - a_max*Delta_t + vel_final;
 //        qDebug() << rampa_vel[n];
     }
-    return rampa_vel;
+    if(v_inicial->vx != v_final->vx){
+        std::copy(rampa.begin(), rampa.end(), rampa_vx->begin());
+    }else if(v_inicial->vy != v_final->vy){
+        std::copy(rampa.begin(), rampa.end(), rampa_vy->begin());
+    }else if(v_inicial->wz != v_final->wz){
+        std::copy(rampa.begin(), rampa.end(), rampa_wz->begin());
+    }
+
+    qDebug() << "Rampa vx";
+    for (auto iter = rampa_vx->begin(); iter != rampa_vx->end(); ++iter) {
+        qDebug() << *iter;
+    }
+//    qDebug() << "Rampa vy";
+//    for (auto iter = rampa_vy->begin(); iter != rampa_vy->end(); ++iter) {
+//        qDebug() << *iter;
+//    }
+//    qDebug() << "Rampa wz";
+//    for (auto iter = rampa_wz->begin(); iter != rampa_wz->end(); ++iter) {
+//        qDebug() << *iter;
+//    }
 }
 
 void MainWindow::enviarTrama(){
     static int n = 0;
     if(puertoSerieAbierto){
-        if(n != ){
-            trama_tx->data.v_x = rampa_vx[n];
-            trama_tx->data.v_y = rampa_vy[n];
-            trama_tx->data.w_z = rampa_wz[n];
+//        if(n != ){
+//            trama_tx->data.v_x = rampa_vx[n];
+//            trama_tx->data.v_y = rampa_vy[n];
+//            trama_tx->data.w_z = rampa_wz[n];
 
-            puertoSerie->write(trama_tx->string, sizeof(s_Trama_tx));
-            qDebug() << "Enviado" <<  trama_tx->data.v_x <<  trama_tx->data.v_y <<  trama_tx->data.w_z;
-            n++;
-        }
+//            puertoSerie->write(trama_tx->string, sizeof(s_Trama_tx));
+//            qDebug() << "Enviado" <<  trama_tx->data.v_x <<  trama_tx->data.v_y <<  trama_tx->data.w_z;
+//            n++;
+//        }
+//        delete rampa_vx;
+//        delete rampa_vy;
+//        delete rampa_wz;
     }
 
 }
