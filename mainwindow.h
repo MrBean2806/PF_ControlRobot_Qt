@@ -30,8 +30,8 @@ typedef struct{
     uint32_t start;
     uint32_t timestamp;       //contador que indica el ms en que se hizo la medicion
     float    u_m   [4];          //velocidad angular en el eje de cada motor
-    float    a_m   [3];          //aceleraciÃ³n lineal medida en cada eje
-    float    phi_m [3];          //giro en cada eje
+    int16_t    a_m   [3];          //aceleraciÃ³n lineal medida en cada eje
+    int16_t    phi_m [3];          //giro en cada eje
     uint16_t i_m;          //corriente medida en cada motor
     uint16_t v_bat;
     uint16_t status;
@@ -41,7 +41,7 @@ typedef struct{
 
 typedef union{
   s_Trama_rx data;
-  char string[52];
+  char string[44];
 }u_Trama_rx;
 
 class Vel_espacial {
@@ -104,6 +104,7 @@ private:
     std::vector<float> *rampa_vx;
     std::vector<float> *rampa_vy;
     std::vector<float> *rampa_wz;
+    float data_freq = 20;         // [ms] periodo con el que se envian los datos de la rampa
     bool puertoSerieAbierto = false;
     bool graficarVelocidad  = false;
     bool velocidadEstable   = true;
