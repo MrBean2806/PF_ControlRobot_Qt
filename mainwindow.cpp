@@ -30,15 +30,7 @@ MainWindow::MainWindow(QWidget *parent)
     vel_espacial_actual = new Vel_espacial();
     vel_espacial_final = new Vel_espacial();
 
-//    data_file = new QFile(data_file_name);
-//    csv_file = new QFile(csv_file_name);
-//    chart = new QChart();
-//    chartView = new QChartView(chart);
-
-//    QPixmap imagenRobot("D:/Qt_Projects/PF_ControlRobot/icons/RobotOmni.jpeg");
-//    imagenRobot = imagenRobot.scaled(300, 200, Qt::KeepAspectRatio);
-//    ui->label_ImagenRobot->setPixmap(imagenRobot);
-//    ui->label_ImagenRobot->show();
+    //Agrego vista superior del robot
     QImageReader::setAllocationLimit(0);
     QImage imagen("D:/Qt_Projects/PF_ControlRobot/icons/RobotOmni.jpeg");
     QPixmap imagenRobot = QPixmap::fromImage(imagen);
@@ -46,16 +38,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->label_ImagenRobot->setPixmap(imagenRobot);
     ui->label_ImagenRobot->show();
 
-//    ui->customPlot->addGraph();
-//    ui->customPlot->graph(0)->setData(x, y);
-//    // give the axes some labels:
-//    ui->customPlot->xAxis->setLabel("Tiempo [ms]");
-//    ui->customPlot->yAxis->setLabel("Velocidad [rpm]");
-//    // set axes ranges, so we see all data:
-//    ui->customPlot->xAxis->setRange(0, 10);
-//    ui->customPlot->yAxis->setRange(0, 200);
-//    ui->customPlot->replot();
-
+    //// CONEXIONES ENTRE OBJETOS Y SLOTS
     //Al mover el slider se muestra el valor elegido en m/s en un label
     connect(ui->slider_vx, &QSlider::sliderMoved, [this](){  ui->label_vx->setText(QString::number(ui->slider_vx->value()/100.0, 'f', 2)); });
     connect(ui->slider_vy, &QSlider::sliderMoved, [this](){  ui->label_vy->setText(QString::number(ui->slider_vy->value()/100.0, 'f', 2)); });
@@ -69,16 +52,19 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->button_reset_vy, SIGNAL(clicked(bool)), this, SLOT(setVel()));
     connect(ui->button_reset_wz , SIGNAL(clicked(bool)), this, SLOT(setVel()));
 
-
+    //Cuando se suelta el slider se actualiza la velocidad seteada
     connect(ui->slider_vx, SIGNAL(sliderReleased()), this, SLOT(setVel()));
     connect(ui->slider_vy, SIGNAL(sliderReleased()), this, SLOT(setVel()));
     connect(ui->slider_wz, SIGNAL(sliderReleased()), this, SLOT(setVel()));
 
+    //Timer
     connect(timer, SIGNAL(timeout()), this, SLOT(enviarTrama()));
 
+    //Señales puerto serie
     connect(ui->button_conectarPuertoSerie, SIGNAL(clicked(bool)), this, SLOT(abrirPuertoSerie()));
     connect(puertoSerie, SIGNAL(readyRead()), this, SLOT(leerTrama()));
 
+    //Abro el puerto serie al iniciar el programa
     abrirPuertoSerie();
 
 }
@@ -94,6 +80,8 @@ void MainWindow::abrirPuertoSerie(){
         puertoSerie->close();
         puertoSerieAbierto = false;
     }
+    //Descomentando el siguiente codigo se puede encontrar los datos mencionados del dispositivo USB a conectar
+    //Una vez obtenidos, se tienen que agregar en los miembros de la clase MainWindow
     /*
      *  Testing code, prints the description, vendor id, and product id of all ports.
      *  Used it to determine the values for the sasori.
@@ -153,41 +141,41 @@ void MainWindow::abrirPuertoSerie(){
 }
 
 void MainWindow::setVel(){
-    if(velocidadEstable){
-        float l = 0.15;
-        float w = 0.125;
-        float r = 0.05;
+    // parametros cinematicos del robot
+    float l = 0.15;
+    float w = 0.125;
+    float r = 0.05;
 
-        float vx_ref = ui->slider_vx->value()/100.0;
-        float vy_ref = ui->slider_vy->value()/100.0;
-        float wz_ref = ui->slider_wz->value()/100.0;
+    float vx_ref = ui->slider_vx->value()/100.0;
+    float vy_ref = ui->slider_vy->value()/100.0;
+    float wz_ref = ui->slider_wz->value()/100.0;
 
-        ui->label_vx->setText(QString::number(vx_ref, 'f', 2));
-        ui->label_vy->setText(QString::number(vy_ref, 'f', 2));
-        ui->label_wz->setText(QString::number(wz_ref, 'f', 2));
+    ui->label_vx->setText(QString::number(vx_ref, 'f', 2));
+    ui->label_vy->setText(QString::number(vy_ref, 'f', 2));
+    ui->label_wz->setText(QString::number(wz_ref, 'f', 2));
 
-        ui->label_u_ref_1->setText(QString::number((30.0/3.1415)*(1.0/r)*((-l-w)*wz_ref + vx_ref - vy_ref), 'f', 2) + " rpm");
-        ui->label_u_ref_2->setText(QString::number((30.0/3.1415)*(1.0/r)*(( l+w)*wz_ref + vx_ref + vy_ref), 'f', 2) + " rpm");
-        ui->label_u_ref_3->setText(QString::number((30.0/3.1415)*(1.0/r)*(( l+w)*wz_ref + vx_ref - vy_ref), 'f', 2) + " rpm");
-        ui->label_u_ref_4->setText(QString::number((30.0/3.1415)*(1.0/r)*((-l-w)*wz_ref + vx_ref + vy_ref), 'f', 2) + " rpm");
+    // Muestro la velocidad seteada para cada motor
+    ui->label_u_ref_1->setText(QString::number((30.0/3.1415)*(1.0/r)*((-l-w)*wz_ref + vx_ref - vy_ref), 'f', 2) + " rpm");
+    ui->label_u_ref_2->setText(QString::number((30.0/3.1415)*(1.0/r)*(( l+w)*wz_ref + vx_ref + vy_ref), 'f', 2) + " rpm");
+    ui->label_u_ref_3->setText(QString::number((30.0/3.1415)*(1.0/r)*(( l+w)*wz_ref + vx_ref - vy_ref), 'f', 2) + " rpm");
+    ui->label_u_ref_4->setText(QString::number((30.0/3.1415)*(1.0/r)*((-l-w)*wz_ref + vx_ref + vy_ref), 'f', 2) + " rpm");
 
-        vel_espacial_final->setVel(vx_ref, vy_ref, wz_ref);
-        qDebug() << "Vel inicial";
-        vel_espacial_actual->imprimirVelocidades();
-        qDebug() << "Vel final";
-        vel_espacial_final->imprimirVelocidades();
+    vel_espacial_final->setVel(vx_ref, vy_ref, wz_ref);
+    qDebug() << "Vel inicial";
+    vel_espacial_actual->imprimirVelocidades();
+    qDebug() << "Vel final";
+    vel_espacial_final->imprimirVelocidades();
 
-//        velocidadEstable = false;
-        generarRampaVelocidad(vel_espacial_actual, vel_espacial_final);
-        vel_espacial_actual->setVel(vel_espacial_final->vx, vel_espacial_final->vy, vel_espacial_final->wz);
-        timer->start(data_freq);
-//        enviarTrama();
-    }
+    generarRampaVelocidad(vel_espacial_actual, vel_espacial_final); //Genero la rampa de velocidad para cada componente
+    vel_espacial_actual->setVel(vel_espacial_final->vx, vel_espacial_final->vy, vel_espacial_final->wz);    //Actualizo la velocidad actual
+    timer->start(data_freq);    //Llama a enviarTrama() con un periodo de data_freq para enviar las velocidades intermedias de las rampas
 }
 
+// Se encarga de generar una transicion lineal entre las velocidades iniciales y finales seteadas
+// Los valores intermedios son guardados en vectores miembros de la clase MainWindow, y transmitidos de a uno
 void MainWindow::generarRampaVelocidad(Vel_espacial * v_inicial, Vel_espacial * v_final){
-    float a_max   = 0.5;         // [m/s^2]
-    data_freq = 20;
+    float a_max   = 0.5;    // [m/s^2]
+    data_freq = 20;         // [ms] periodo con el que se envian los datos de la rampa
     float t_step  = data_freq/1000.0;
     float Delta_t = 0;
     int N = 0;
@@ -209,8 +197,6 @@ void MainWindow::generarRampaVelocidad(Vel_espacial * v_inicial, Vel_espacial * 
     Delta_t = qRound(Delta_t/t_step)*t_step; //me aseguro que el delta sea multiplo de t_step
     N       = Delta_t/t_step + 1;
 
-//    qDebug() << "N: " << N << "Delta_t: " << Delta_t << "t_step: " << t_step;
-//    qDebug() << "N: " << N;
     rampa_vx = new std::vector<float>(N, v_inicial->vx);
     rampa_vy = new std::vector<float>(N, v_inicial->vy);
     rampa_wz = new std::vector<float>(N, v_inicial->wz);
@@ -228,13 +214,9 @@ void MainWindow::generarRampaVelocidad(Vel_espacial * v_inicial, Vel_espacial * 
         std::copy(rampa.begin(), rampa.end(), rampa_wz->begin());
     }
 
-//    qDebug() << "Rampa";
-//    for (auto iter = rampa.begin(); iter != rampa.end(); ++iter) {
-//        qDebug() << *iter;
-//    }
-
 }
 
+// Un timer llama esta funcion con una frecuencia determinada, se envian los 3 componentes de la velocidad espacial hasta terminar la rampa
 void MainWindow::enviarTrama(){
     static int n = 0;
     int N = rampa_vx->size();
@@ -249,47 +231,43 @@ void MainWindow::enviarTrama(){
             ui->textBrowser_terminal->append(">> " + QString::number(trama_tx->data.v_x)+"  "+ QString::number(trama_tx->data.v_y)+"  "+QString::number(trama_tx->data.w_z));
             n++;
         }else{
-//            puertoSerie->write(trama_tx->string, sizeof(s_Trama_tx));
             timer->stop();
             n = 0;
             delete rampa_vx;
             delete rampa_vy;
             delete rampa_wz;
         }
-//        trama_tx->data.v_x = (float)ui->slider_vx->value()/100.0;
-//        trama_tx->data.v_y = (float)ui->slider_vy->value()/100.0;
-//        trama_tx->data.w_z = (float)ui->slider_wz->value()/100.0;
-//        qDebug() << "Enviado" <<  trama_tx->data.v_x <<  trama_tx->data.v_y <<  trama_tx->data.w_z;
-
-//        puertoSerie->write(trama_tx->string, sizeof(s_Trama_tx));
-
     }
 }
 
+// Leo de a bloques de caracteres desde el puerto serie
+// Identifico y extraigo la trama buscando los caracteres delimitadores '[' y ']'
 void MainWindow::leerTrama(){
     u_Trama_rx trama_rx;
     bool trama_valida = false;
     if(puertoSerieAbierto){
         QByteArray serialBuffer = puertoSerie->readAll();
-        qDebug() << "\nLlego: " << serialBuffer;
-        qDebug() << "Largo: " << serialBuffer.length();
+//        qDebug() << "\nLlego: " << serialBuffer;
+//        qDebug() << "Largo: " << serialBuffer.length();
         int i_inicio = serialBuffer.indexOf('[');
         int i_final  = serialBuffer.indexOf(']', i_inicio);
         while(i_inicio >= 0 && i_final >= 0){
                 if(i_final-i_inicio == sizeof(s_Trama_rx)-1){
                     trama_valida = true;
-                    qDebug() << "Trama valida";
+//                    qDebug() << "Trama valida";
                     memcpy(trama_rx.string, serialBuffer.sliced(i_inicio, i_final-i_inicio-1), sizeof(s_Trama_rx));
-                    qDebug() << "Extraido: " << serialBuffer.sliced(i_inicio, i_final-i_inicio-1), sizeof(s_Trama_rx);
+//                    qDebug() << "Extraido: " << serialBuffer.sliced(i_inicio, i_final-i_inicio-1), sizeof(s_Trama_rx);
                 }
                 i_inicio = serialBuffer.indexOf('[', i_final);
                 i_final  = serialBuffer.indexOf(']', i_inicio);
         }
         if(trama_valida){
+            //Actualizo las etiquetas de la UI
             float u1 = (ui->label_u_ref_1->text().contains("-")) ? -trama_rx.data.u_m[0] : trama_rx.data.u_m[0];
             float u2 = (ui->label_u_ref_2->text().contains("-")) ? -trama_rx.data.u_m[1] : trama_rx.data.u_m[1];
             float u3 = (ui->label_u_ref_3->text().contains("-")) ? -trama_rx.data.u_m[2] : trama_rx.data.u_m[2];
             float u4 = (ui->label_u_ref_4->text().contains("-")) ? -trama_rx.data.u_m[3] : trama_rx.data.u_m[3];
+
             ui->label_u_m_1->setText(QString::number(u1));
             ui->label_u_m_2->setText(QString::number(u2));
             ui->label_u_m_3->setText(QString::number(u3));
@@ -304,98 +282,7 @@ void MainWindow::leerTrama(){
             ui->lcd_phim2->display(trama_rx.data.phi_m[1]);
             ui->lcd_phim3->display(trama_rx.data.phi_m[2]);
         }
-
-//        qDebug() << trama_rx.data.u_m[0] << " "
-//                 << trama_rx.data.u_m[1] << " "
-//                 << trama_rx.data.u_m[2] << " "
-//                 << trama_rx.data.u_m[3];
-
-//        qDebug() << trama_rx.data.i_m << trama_rx.data.v_bat;
-//        qDebug() << trama_rx.data.a_m[0] << " "
-//                 << trama_rx.data.a_m[1] << " "
-//                 << trama_rx.data.a_m[2] << " "
-//                 << trama_rx.data.phi_m[0] << " "
-//                 << trama_rx.data.phi_m[1] << " "
-//                 << trama_rx.data.phi_m[2];
-//        enviarTrama();
-//        if(graficarVelocidad){
-//            //Leo todo lo que haya en el puerto serie y lo guardo en el archivo
-//            qDebug() << serialBuffer;
-//            QTextStream stream(data_file);
-//            stream << serialBuffer;
-
-//        }else{
-//            QByteArray vel_medida;
-//            QByteArray duty = 0;
-
-//        }
     }
-
-}
-
-void MainWindow::iniciarEnsayo(){
-//    abrirPuertoSerie();
-//    graficarVelocidad = true;
-//    data_file->remove();
-//    abrirArchivo(data_file);
-//    ui->slider_velocidad->setValue(100);
-//    QTimer::singleShot(1500, Qt::PreciseTimer, [&]() {
-//        ui->slider_velocidad->setValue(0);
-//    });
-}
-
-void MainWindow::detenerEnsayo(){
-//    graficarVelocidad = false;
-//    ui->slider_velocidad->setValue(0);
-////    puertoSerie->close();
-//    data_file->close();
-//    graficarDatos();
-}
-
-void MainWindow::abrirArchivo(QFile *file){
-//    qDebug() << "Abriendo archivo";
-
-//    if(!file->open(QIODevice::ReadWrite | QIODevice::Text)){
-////    if(!file->open(QIODevice::ReadWrite)){
-//        qCritical() << "No se pudo abrir el archivo :(";
-//        qCritical() << file->errorString();
-//        return;
-//    }
-//    qInfo() << "Archivo abierto ...";
-}
-
-void MainWindow::graficarDatos(){
-
-
-}
-
-void MainWindow::exportarArchivo(){
-//    //convierte el archivo .txt a formato .csv para exportar los graficos a excel
-//    int n = 1;
-
-
-//    if( !data_file->isOpen() ){
-//        abrirArchivo(data_file);
-//    }
-//    data_file->seek(0);
-//    csv_file->remove();
-//    abrirArchivo(csv_file);
-
-//    QTextStream stream_out(data_file);
-//    QTextStream stream_in(csv_file);
-////    qDebug() << data_file->pos();
-//    stream_in << "time,duty,wm\n";
-//    stream_in << " ,Interp:linear,Interp:linear\n";
-//    stream_in << "Unit:s, ,Unit: rpm\n";
-
-//    while(!stream_out.atEnd()){
-//        QString line = stream_out.readLine();
-//        line = line.replace(' ', ',');
-//        stream_in << n/1000.0 << ',' << line << '\n';
-//        n++;
-//    }
-//    data_file->close();
-//    csv_file->close();
 
 }
 
